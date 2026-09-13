@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Coding Agent Prototype</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <main class="shell">
+        <header class="topbar">
+            <div>
+                <p class="eyebrow">PORTFOLIO PROJECT</p>
+                <h1>AI Coding Agent Prototype</h1>
+                <p class="subtitle">
+                    Mock-provider mode • No paid AI API connected
+                </p>
+            </div>
+            <div class="status">
+                <span class="dot"></span>
+                Local tools ready
+            </div>
+        </header>
+
+        <section class="layout">
+            <aside class="panel sidebar">
+                <h2>Try a command</h2>
+                <button data-command="help">help</button>
+                <button data-command="list files">list files</button>
+                <button data-command="read calculator.py">read calculator.py</button>
+                <button data-command="run tests">run tests</button>
+                <button data-command="check project">check project</button>
+                <button data-command="history">history</button>
+
+                <div class="note">
+                    <strong>Architecture demo</strong>
+                    <p>
+                        The mock provider translates commands into tool calls.
+                        The provider can later be replaced by a real LLM.
+                    </p>
+                </div>
+            </aside>
+
+            <section class="panel chat-panel">
+                <div id="messages" class="messages" aria-live="polite">
+                    <div class="message agent">
+                        <div class="label">Agent</div>
+                        <pre>Ready. Type "help" to see supported commands.</pre>
+                    </div>
+                </div>
+
+                <form id="chat-form" class="composer">
+                    <input
+                        id="message-input"
+                        type="text"
+                        autocomplete="off"
+                        placeholder="e.g. check project"
+                        required
+                    >
+                    <button type="submit">Send</button>
+                </form>
+            </section>
+        </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
