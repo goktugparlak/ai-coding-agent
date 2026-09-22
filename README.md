@@ -130,12 +130,31 @@ This allows the agent to inspect code, make changes, run tests, and evaluate whe
 ai-coding-agent/
 │
 ├── app/
+│   ├── __init__.py
+│   ├── agent.py
+│   ├── api.py
+│   ├── config.py
+│   ├── database.py
+│   ├── exceptions.py
 │   ├── main.py
-│   ├── agent/
+│   │
 │   ├── providers/
-│   ├── tools/
-│   ├── api/
-│   └── database/
+│   │   ├── base.py
+│   │   ├── mock_provider.py
+│   │   └── openai_provider.py
+│   │
+│   └── tools/
+│       ├── file_tools.py
+│       ├── registry.py
+│       ├── terminal_tools.py
+│       └── test_tools.py
+│
+├── data/
+│
+├── frontend/
+│   ├── app.js
+│   ├── index.html
+│   └── style.css
 │
 ├── tests/
 │   ├── test_agent.py
@@ -146,14 +165,16 @@ ai-coding-agent/
 │   └── test_test_tools.py
 │
 ├── workspace/
-├── pytest.ini
-├── requirements.txt
+│
 ├── .env.example
 ├── .gitignore
+├── LICENSE
+├── pytest.ini
+├── requirements.txt
 └── README.md
 ```
 
-The exact internal structure may vary slightly as the project evolves.
+The project is organized around a modular provider and tool architecture. The `CodingAgent` coordinates requests, providers decide how requests should be handled, and the `ToolRegistry` controls which development tools can be executed. The OpenAI provider uses LLM function calling, while the mock provider allows deterministic local testing without paid API usage.
 
 ## Installation
 
