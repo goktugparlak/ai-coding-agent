@@ -1,24 +1,52 @@
+import pytest
 from fastapi.testclient import TestClient
 
-from app.api import app
+from app import api
+from app.agent import CodingAgent
+from app.database import HistoryStore
+from app.providers.mock_provider import MockProvider
 
 
-client = TestClient(app)
+@pytest.fixture
+def client(tmp_path):
+
+    api.agent = CodingAgent(
+        provider=MockProvider(),
+        history=HistoryStore(
+            tmp_path / "api-history.db"
+        ),
+    )
+
+    return TestClient(api.app)
 
 
-def test_health():
-    response = client.get("/api/health")
+def test_health(client):
 
-    assert response.status_code == 200
-    assert response.json()["status"] == "ok"
-    assert response.json()["llm_connected"] is False
-
-
-def test_chat_help():
-    response = client.post(
-        "/api/chat",
-        json={"message": "help"},
+    response = client.get(
+        "/api/health"
     )
 
     assert response.status_code == 200
-    assert "Available commands" in response.json()["response"]
+
+    data = response.json()
+
+    assert data["status"] == "ok"
+    assert data["provider"] == "mock"
+    assert data["llm_connected"] is False
+
+
+def test_chat_help(client):
+
+    response = client.post(
+        "/api/chat",
+        json={
+            "message": "help"
+        },
+    )
+
+    assert response.status_code == 200
+
+    assert (
+        "Available commands"
+        in response.json()["response"]
+    )

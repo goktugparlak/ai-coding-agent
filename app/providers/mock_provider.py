@@ -1,6 +1,4 @@
-import shlex
-
-from app.providers.base import BaseProvider, ProviderPlan, ToolAction
+from app.providers.base import BaseProvider, ToolExecutor
 
 
 HELP_TEXT = """Available commands:
@@ -14,104 +12,135 @@ HELP_TEXT = """Available commands:
 - check project
 - history
 
-This portfolio version uses a deterministic mock provider, not a real LLM.
-The provider layer can later be replaced by an OpenAI/local-model provider.
+The project supports both deterministic mock mode and a real
+OpenAI-powered provider.
 """
+
+
+def format_tool_result(label: str, result: object) -> str:
+    if isinstance(result, list):
+        body = "\n".join(f"- {item}" for item in result)
+        if not body:
+            body = "(empty)"
+    else:
+        body = str(result)
+
+    return f"{label}\n{body}"
+
+
+def execute_safely(
+    execute_tool: ToolExecutor,
+    tool_name: str,
+    arguments: dict,
+    label: str,
+) -> str:
+    try:
+        result = execute_tool(tool_name, arguments)
+        return format_tool_result(label, result)
+    except Exception as error:
+        return f"{label}\nError: {error}"
 
 
 class MockProvider(BaseProvider):
     """
-    Deterministic rule-based provider.
+    Deterministic provider used for development and automated tests.
 
-    It demonstrates provider abstraction and tool orchestration without
-    requiring an API key or paid model.
+    It does not call an external AI API.
     """
 
-    def plan(self, message: str) -> ProviderPlan:
+    name = "mock"
+    llm_connected = False
+    model = None
+
+    def run(
+        self,
+        message: str,
+        execute_tool: ToolExecutor,
+    ) -> str:
+
         raw = message.strip()
         normalized = raw.lower()
 
         if not raw:
-            return ProviderPlan("Please enter a command.")
+            return "Please enter a command."
 
         if normalized in {"help", "commands", "?"}:
-            return ProviderPlan(HELP_TEXT)
+            return HELP_TEXT
 
         if normalized in {"list files", "files", "ls"}:
-            return ProviderPlan(
-                actions=[
-                    ToolAction(
-                        "list_files",
-                        label="Workspace files",
-                    )
-                ]
+            return execute_safely(
+                execute_tool,
+                "list_files",
+                {},
+                "Workspace files",
             )
 
         for prefix in ("read ", "inspect ", "show "):
             if normalized.startswith(prefix):
+
                 filename = raw[len(prefix):].strip()
+
                 if not filename:
-                    return ProviderPlan("Please provide a filename.")
-                return ProviderPlan(
-                    actions=[
-                        ToolAction(
-                            "read_file",
-                            {"filename": filename},
-                            f"Contents of {filename}",
-                        )
-                    ]
+                    return "Please provide a filename."
+
+                return execute_safely(
+                    execute_tool,
+                    "read_file",
+                    {"filename": filename},
+                    f"Contents of {filename}",
                 )
 
         if normalized.startswith("write "):
+
             payload = raw[6:].strip()
 
             if "::" not in payload:
-                return ProviderPlan(
-                    "Usage: write <filename> :: <content>"
-                )
+                return "Usage: write <filename> :: <content>"
 
             filename, content = payload.split("::", 1)
+
             filename = filename.strip()
             content = content.strip()
 
             if not filename:
-                return ProviderPlan("Please provide a filename.")
+                return "Please provide a filename."
 
-            return ProviderPlan(
-                actions=[
-                    ToolAction(
-                        "write_file",
-                        {
-                            "filename": filename,
-                            "content": content,
-                        },
-                        f"Write {filename}",
-                    )
-                ]
+            return execute_safely(
+                execute_tool,
+                "write_file",
+                {
+                    "filename": filename,
+                    "content": content,
+                },
+                f"Write {filename}",
             )
 
         if normalized.startswith("run python "):
+
             filename = raw[len("run python "):].strip()
+
             if not filename:
-                return ProviderPlan("Please provide a Python filename.")
-            return ProviderPlan(
-                actions=[
-                    ToolAction(
-                        "run_python",
-                        {"filename": filename},
-                        f"Run {filename}",
-                    )
-                ]
+                return "Please provide a Python filename."
+
+            return execute_safely(
+                execute_tool,
+                "run_python",
+                {"filename": filename},
+                f"Run {filename}",
             )
 
-        if normalized in {"run tests", "test", "tests", "pytest"}:
-            return ProviderPlan(
-                actions=[
-                    ToolAction(
-                        "run_tests",
-                        label="Test results",
-                    )
-                ]
+        if normalized in {
+            "run tests",
+            "test",
+            "tests",
+            "pytest",
+        }:
+
+            return execute_safely(
+                execute_tool,
+                "run_tests",
+                {},
+                "Test results",
             )
 
         if normalized in {
@@ -119,24 +148,31 @@ class MockProvider(BaseProvider):
             "project status",
             "status",
         }:
-            return ProviderPlan(
-                message="Running a small project check.",
-                actions=[
-                    ToolAction(
-                        "list_files",
-                        label="Workspace files",
-                    ),
-                    ToolAction(
-                        "run_tests",
-                        label="Test results",
-                    ),
-                ],
+
+            files = execute_safely(
+                execute_tool,
+                "list_files",
+                {},
+                "Workspace files",
+            )
+
+            tests = execute_safely(
+                execute_tool,
+                "run_tests",
+                {},
+                "Test results",
+            )
+
+            return (
+                "Running a small project check.\n\n"
+                f"{files}\n\n"
+                f"{tests}"
             )
 
         if normalized == "history":
-            # Agent handles persistence-specific commands.
-            return ProviderPlan("__SHOW_HISTORY__")
+            return "__SHOW_HISTORY__"
 
-        return ProviderPlan(
-            "I do not understand that command yet.\n\n" + HELP_TEXT
+        return (
+            "I do not understand that command yet.\n\n"
+            + HELP_TEXT
         )

@@ -1,261 +1,469 @@
-# AI Coding Agent Prototype
+# AI Coding Agent
 
-A portfolio-ready coding-agent prototype built with Python, FastAPI, pytest, SQLite, and a lightweight HTML/CSS/JavaScript interface.
+A modular AI coding agent built with Python, FastAPI, SQLite, pytest, and the OpenAI Responses API.
 
-> **Important:** this version intentionally does **not** connect to an LLM or paid AI API.  
-> It uses a deterministic `MockProvider` to demonstrate agent architecture, tool orchestration, testing, persistence, and a replaceable provider layer.
+The project supports both a deterministic `MockProvider` for free local development, demonstrations, and automated testing, and a real `OpenAIProvider` that uses LLM function calling to interact with controlled development tools.
 
-## Why this project exists
+The OpenAI provider requires the user to configure their own OpenAI API key and have available API credits. The project can be developed, tested, and demonstrated locally with the `MockProvider` without making paid API calls.
 
-The goal is to understand how coding agents are structured around a model:
+## Features
+
+* Modular provider architecture
+* OpenAI Responses API integration
+* LLM tool/function calling
+* File reading and writing
+* Workspace file listing
+* Restricted workspace access
+* Python command execution
+* Automated pytest execution
+* CLI interface
+* FastAPI backend
+* SQLite-based conversation/history storage
+* Deterministic mock provider for local development
+* Automated test suite
+
+## Architecture
 
 ```text
 User
   ↓
-Interface (CLI / Web)
+CLI / Web Interface
   ↓
 CodingAgent
   ↓
-Provider
+BaseProvider
+  ├── MockProvider
+  └── OpenAIProvider
+          ↓
+      OpenAI Responses API
+          ↓
+      Function / Tool Calls
+          ↓
+      ToolRegistry
+          ↓
+  ┌───────┼───────────┐
+  ↓       ↓           ↓
+Files   Python      pytest
+Tools   Execution    Tests
   ↓
-Tool plan
-  ↓
-ToolRegistry
-  ↓
-File / Python / pytest tools
-  ↓
-Workspace
+Restricted Workspace
 ```
 
-A future OpenAI or local-model provider can replace `MockProvider` without redesigning the tool layer.
+## How It Works
 
-## Features
+The `CodingAgent` receives a user request and passes it to the configured provider.
 
-- Interactive terminal interface
-- FastAPI backend
-- Browser-based chat UI
-- Provider abstraction (`BaseProvider`)
-- Free deterministic `MockProvider`
-- File discovery, reading, and writing
-- Workspace path-traversal protection
-- Restricted Python execution tool
-- Automated pytest execution
-- SQLite command/response history
-- Tool registry and orchestration layer
-- Automated test suite
-- Example workspace project
-- No API key required
+With the `MockProvider`, responses are deterministic and no external API call is required.
 
-## Project structure
+With the `OpenAIProvider`, the request is sent to the OpenAI Responses API. The model can decide whether it needs to use one of the available development tools.
+
+For example:
+
+```text
+User Request
+    ↓
+OpenAI Provider
+    ↓
+Model decides to use a tool
+    ↓
+ToolRegistry
+    ↓
+read_file / write_file / run_python / run_tests
+    ↓
+Tool Result
+    ↓
+Model receives the result
+    ↓
+Final response or another tool call
+```
+
+This allows the agent to interact with a controlled development environment instead of only generating text responses.
+
+## Available Tools
+
+### File Tools
+
+The agent can:
+
+* List files in the workspace
+* Read files
+* Write files
+* Reject access outside the configured workspace
+
+Example operations:
+
+```text
+list_files
+read_file
+write_file
+```
+
+Path traversal attempts are blocked so the agent cannot freely access files outside its restricted workspace.
+
+### Python Execution
+
+The agent can execute Python code or Python files through the controlled terminal tool.
+
+Example:
+
+```text
+run_python
+```
+
+Execution output, errors, and return codes can be returned to the agent.
+
+### Automated Tests
+
+The agent can execute the project's test suite using pytest.
+
+Example:
+
+```text
+run_tests
+```
+
+This allows the agent to inspect code, make changes, run tests, and evaluate whether the changes work correctly.
+
+## Project Structure
 
 ```text
 ai-coding-agent/
+│
 ├── app/
-│   ├── agent.py
-│   ├── api.py
-│   ├── config.py
-│   ├── database.py
-│   ├── exceptions.py
 │   ├── main.py
+│   ├── agent/
 │   ├── providers/
-│   │   ├── base.py
-│   │   └── mock_provider.py
-│   └── tools/
-│       ├── file_tools.py
-│       ├── registry.py
-│       ├── terminal_tools.py
-│       └── test_tools.py
-├── frontend/
-│   ├── app.js
-│   ├── index.html
-│   └── style.css
+│   ├── tools/
+│   ├── api/
+│   └── database/
+│
 ├── tests/
+│   ├── test_agent.py
+│   ├── test_api.py
+│   ├── test_file_tools.py
+│   ├── test_openai_provider.py
+│   ├── test_terminal_tools.py
+│   └── test_test_tools.py
+│
 ├── workspace/
-├── data/
-├── requirements.txt
 ├── pytest.ini
+├── requirements.txt
+├── .env.example
+├── .gitignore
 └── README.md
 ```
 
-## Setup
+The exact internal structure may vary slightly as the project evolves.
 
-### Windows PowerShell
+## Installation
+
+Clone the repository:
+
+```bash
+git clone https://github.com/goktugparlak/ai-coding-agent.git
+cd ai-coding-agent
+```
+
+Create a virtual environment:
+
+### Windows
 
 ```powershell
 python -m venv .venv
-.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
+.venv\Scripts\activate
 ```
 
-If PowerShell blocks activation, you can still use the virtual environment directly:
+### macOS / Linux
 
-```powershell
-.venv\Scripts\python.exe -m pip install -r requirements.txt
+```bash
+python -m venv .venv
+source .venv/bin/activate
 ```
 
-## Run the CLI
+Install the dependencies:
 
-```powershell
+```bash
+pip install -r requirements.txt
+```
+
+## Environment Configuration
+
+Create a `.env` file in the project root.
+
+You can copy `.env.example`:
+
+```bash
+cp .env.example .env
+```
+
+On Windows, you can also create the file manually.
+
+Example configuration:
+
+```env
+OPENAI_API_KEY=your_api_key_here
+OPENAI_MODEL=your_model_here
+```
+
+Never commit your real API key to GitHub.
+
+The `.env` file should remain excluded through `.gitignore`.
+
+## Running the Agent
+
+Start the CLI application:
+
+```bash
 python -m app.main
 ```
 
 Example:
 
 ```text
-AI Coding Agent Prototype
-Mock provider mode — no paid AI API is connected.
+AI Coding Agent
+Provider: openai
+Model: your-configured-model
+Type 'exit' to quit.
 
-You: check project
-
-Agent:
-Running a small project check.
-
-Workspace files
-- README.md
-- calculator.py
-- tests/test_calculator.py
-
-Test results
-Tests passed.
-2 passed
+You: List the files in the workspace and explain what the project contains.
 ```
 
-## Run the web interface
+When the OpenAI provider is enabled, live API requests require:
 
-```powershell
-python -m uvicorn app.api:app --reload
-```
+* A valid OpenAI API key
+* Available API credits
 
-Then open:
+Without API credits, the OpenAI provider may return a quota or billing error.
 
-```text
-http://127.0.0.1:8000
-```
+## Mock Provider
 
-FastAPI docs are available at:
+The project also includes a deterministic `MockProvider`.
 
-```text
-http://127.0.0.1:8000/docs
-```
+The mock provider is useful for:
 
-## Supported commands
+* Local development
+* Automated testing
+* Demonstrations
+* Testing agent logic without paid API calls
+* Testing tool execution independently from an external LLM
 
-```text
-help
-list files
-read <filename>
-inspect <filename>
-write <filename> :: <content>
-run python <filename>
-run tests
-check project
-history
-```
+This means the main architecture and tool system can be tested without sending requests to a paid AI service.
 
-Examples:
+## Running the Tests
 
-```text
-read calculator.py
-write demo.py :: print("Hello")
-run python demo.py
-run tests
-check project
-```
+Run the complete test suite:
 
-## Run tests
-
-```powershell
+```bash
 python -m pytest -v
 ```
 
-The test suite covers:
-
-- file reads/writes
-- path-traversal blocking
-- workspace file listing
-- Python execution
-- successful and failing pytest runs
-- agent routing
-- history persistence
-- FastAPI health/chat endpoints
-
-## Design decisions
-
-### 1. Provider abstraction
-
-`CodingAgent` does not depend directly on OpenAI or another model provider.
+Current test status:
 
 ```text
-CodingAgent
-    ↓
-BaseProvider
-    ↓
-MockProvider today
-    ↓
-OpenAIProvider / LocalModelProvider later
+15 passed
 ```
 
-This keeps the project testable and free during development.
+The test suite covers areas including:
 
-### 2. Tool registry
-
-The provider chooses *what should happen*.  
-The registry controls *what the application is actually allowed to execute*.
-
-That separation is central to agent architecture.
-
-### 3. Workspace restriction
-
-File tools resolve requested paths and reject paths that escape `workspace/`.
+* Agent commands
+* Conversation history
+* FastAPI endpoints
+* File reading and writing
+* File listing
+* Path traversal protection
+* OpenAI provider tool execution
+* Python execution
+* Python error handling
+* Successful pytest execution
+* Failed pytest execution
 
 Example:
 
 ```text
-../app/main.py
+tests/test_agent.py::test_agent_lists_files PASSED
+tests/test_agent.py::test_agent_reads_file PASSED
+tests/test_agent.py::test_agent_unknown_command PASSED
+tests/test_agent.py::test_agent_history PASSED
+tests/test_api.py::test_health PASSED
+tests/test_api.py::test_chat_help PASSED
+tests/test_file_tools.py::test_write_and_read_file PASSED
+tests/test_file_tools.py::test_missing_file PASSED
+tests/test_file_tools.py::test_path_traversal_is_blocked PASSED
+tests/test_file_tools.py::test_list_files PASSED
+tests/test_openai_provider.py::test_openai_provider_executes_tool PASSED
+tests/test_terminal_tools.py::test_run_python PASSED
+tests/test_terminal_tools.py::test_run_python_error PASSED
+tests/test_test_tools.py::test_run_tests_success PASSED
+tests/test_test_tools.py::test_run_tests_failure PASSED
 ```
 
-is rejected.
+## Example Agent Workflow
 
-### 4. Restricted command execution
+A typical coding-agent workflow can look like this:
 
-This prototype does not expose arbitrary shell execution.  
-The runtime tool only executes a Python file selected inside the workspace.
+```text
+User asks for a code change
+        ↓
+Agent analyzes the request
+        ↓
+Agent reads relevant project files
+        ↓
+Agent determines the required change
+        ↓
+Agent writes or modifies code
+        ↓
+Agent runs automated tests
+        ↓
+Agent checks the result
+        ↓
+Agent returns the final response
+```
 
-This reduces risk, but it is **not a full security sandbox**. Python code executed inside the workspace can still access resources permitted by the operating system.
+Conceptually, this follows an:
 
-## What this project demonstrates
+```text
+inspect → plan → edit → test
+```
 
-- Python project architecture
-- OOP and abstractions
-- AI-agent architecture concepts
-- tool/function orchestration
-- provider interfaces
-- exception handling
-- file-system safety
-- subprocess management
-- automated testing
-- FastAPI / REST APIs
-- frontend-backend communication
-- SQLite persistence
-- Git-friendly project organization
+workflow.
 
-## Future improvements
+## Why This Is an Agent
 
-- OpenAI Responses API provider
-- Local-model provider
-- structured tool calling
-- multi-step autonomous planning
-- Git diff / checkpoint / rollback tools
-- user approval before file changes
-- stronger isolated execution sandbox
-- repository indexing / RAG
-- streaming responses
-- authentication
+A traditional chatbot mainly generates text responses.
 
-## Portfolio description
+This project can also interact with an external environment through tools.
 
-**AI Coding Agent Prototype** — Built a modular coding-agent architecture in Python with a replaceable model-provider layer, controlled file and execution tools, pytest-based verification, SQLite history, FastAPI REST endpoints, and a browser interface. Implemented a deterministic mock provider so the complete system can be developed and demonstrated without paid API access.
+The agent can:
 
-## License
+```text
+read files
+      ↓
+inspect code
+      ↓
+execute tools
+      ↓
+run tests
+      ↓
+receive tool results
+      ↓
+continue its reasoning
+```
 
-MIT
+The ability to select and execute tools is what allows it to perform coding-related tasks rather than only discuss them.
+
+## Safety and Workspace Restrictions
+
+Tool access is intentionally restricted.
+
+The agent should operate only inside the configured workspace.
+
+The project includes protection against directory traversal attempts such as:
+
+```text
+../../some-file
+```
+
+This reduces the risk of the agent accessing unrelated files on the host system.
+
+Command execution is also separated behind controlled tool interfaces instead of giving the language model unrestricted direct system access.
+
+## API
+
+The project includes a FastAPI backend that can expose agent functionality through HTTP endpoints.
+
+FastAPI can be used to connect the agent to:
+
+* A browser-based frontend
+* Another application
+* A development dashboard
+* External services
+
+The API layer is separate from the core agent logic, which keeps the architecture modular.
+
+## Technologies
+
+### Backend
+
+* Python
+* FastAPI
+* Pydantic
+
+### AI
+
+* OpenAI Responses API
+* LLM function/tool calling
+* Provider abstraction
+
+### Data
+
+* SQLite
+
+### Testing
+
+* pytest
+* FastAPI TestClient
+
+### Development
+
+* Virtual environments
+* Environment variables
+* Git
+* GitHub
+
+## Design Goals
+
+The project focuses on:
+
+* Modular architecture
+* Separation of agent logic and providers
+* Controlled tool execution
+* Testability
+* Safe workspace interaction
+* Easy replacement of AI providers
+* Reproducible local development
+
+The provider abstraction makes it possible to use deterministic testing logic independently from the real OpenAI integration.
+
+## Current Status
+
+The core agent architecture is implemented.
+
+Current functionality includes:
+
+```text
+Agent orchestration        ✅
+Mock provider              ✅
+OpenAI provider            ✅
+LLM tool calling           ✅
+File tools                 ✅
+Restricted workspace       ✅
+Python execution           ✅
+pytest execution           ✅
+FastAPI integration        ✅
+SQLite integration         ✅
+Automated tests            ✅
+15 automated tests passing ✅
+```
+
+Live OpenAI requests require the user's own API key and available API credits.
+
+## Future Improvements
+
+Possible future improvements include:
+
+* Additional development tools
+* More advanced command validation
+* Improved multi-step planning
+* Streaming responses
+* Web-based user interface
+* Git integration
+* Code diff previews
+* Approval before sensitive operations
+* More extensive integration testing
+* Support for additional LLM providers
+
+## Disclaimer
+
+This project is intended as a learning and portfolio project demonstrating agent architecture, tool calling, backend development, automated testing, and controlled code execution.
+
+Any external API usage depends on the user's own API credentials and provider account configuration.
